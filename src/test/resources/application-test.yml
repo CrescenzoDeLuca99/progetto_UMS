@@ -1,0 +1,24 @@
+spring:
+  # Il datasource in test viene sovrascritto dinamicamente da Testcontainers
+  # tramite @DynamicPropertySource — questa configurazione è un placeholder.
+  datasource:
+    url: jdbc:postgresql://localhost:5432/usermanagement_test
+    username: test
+    password: test
+
+  jpa:
+    show-sql: false
+
+  kafka:
+    bootstrap-servers: localhost:9092
+
+  security:
+    oauth2:
+      resourceserver:
+        jwt:
+          # In test usiamo una chiave pubblica RSA statica per firmare token di test
+          public-key-location: classpath:test-public-key.pem
+
+logging:
+  level:
+    com.intesi.usermanagement: INFO

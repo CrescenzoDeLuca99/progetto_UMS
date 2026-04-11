@@ -1,0 +1,39 @@
+# ===== TODO LIST LOCALE =====
+TODO.md
+
+# ===== MAVEN =====
+target/
+*.class
+*.jar
+*.war
+*.ear
+*.zip
+*.tar.gz
+
+# ===== SPRING BOOT =====
+*.log
+logs/
+
+# ===== IDE =====
+.idea/
+*.iml
+*.ipr
+*.iws
+.classpath
+.project
+.settings/
+*.swp
+*.swo
+
+# ===== OS =====
+.DS_Store
+Thumbs.db
+
+# ===== ENV / SECRETS =====
+.env
+.env.*
+*.pem
+!src/test/resources/test-public-key.pem
+
+# ===== DOCKER =====
+docker-compose.override.yml
