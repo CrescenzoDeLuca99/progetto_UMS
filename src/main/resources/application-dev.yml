@@ -4,20 +4,34 @@ spring:
     username: usermgmt
     password: usermgmt
     driver-class-name: org.postgresql.Driver
+    hikari:
+      # Pool sizing calibrato per sviluppo locale
+      maximum-pool-size: 5
+      minimum-idle: 2
+      connection-timeout: 30000
+      idle-timeout: 600000
+      max-lifetime: 1800000
 
   jpa:
     show-sql: true
+    hibernate:
+      ddl-auto: update
 
   kafka:
     bootstrap-servers: localhost:9092
     producer:
       key-serializer: org.apache.kafka.common.serialization.StringSerializer
       value-serializer: org.springframework.kafka.support.serializer.JsonSerializer
+      properties:
+        # Evita di aggiungere header con il tipo Java nel messaggio Kafka,
+        # rendendo i messaggi consumabili da qualsiasi client indipendente dal linguaggio
+        spring.json.add.type.headers: false
 
   security:
     oauth2:
       resourceserver:
         jwt:
+          # Keycloak locale — da aggiornare quando Keycloak è attivo
           issuer-uri: http://localhost:8180/realms/user-management
 
 logging:
