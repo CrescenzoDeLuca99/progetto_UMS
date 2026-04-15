@@ -6,22 +6,31 @@ import org.springframework.test.context.DynamicPropertyRegistry;
 import org.springframework.test.context.DynamicPropertySource;
 import org.testcontainers.containers.KafkaContainer;
 import org.testcontainers.containers.PostgreSQLContainer;
-import org.testcontainers.junit.jupiter.Container;
-import org.testcontainers.junit.jupiter.Testcontainers;
 import org.testcontainers.utility.DockerImageName;
 
+/**
+ * Base class per i test di integrazione.
+ *
+ * I container vengono avviati una sola volta per l'intera suite (Singleton Container Pattern):
+ * senza @Container, Testcontainers non gestisce il lifecycle per ogni classe — i container
+ * restano attivi fino alla JVM exit e vengono ripuliti da Ryuk.
+ * Questo permette a Spring di riutilizzare il contesto tra le classi di test senza che
+ * il pool di connessioni HikariCP punti a container già fermati.
+ */
 @SpringBootTest(webEnvironment = SpringBootTest.WebEnvironment.RANDOM_PORT)
 @ActiveProfiles("test")
-@Testcontainers
 public abstract class AbstractIntegrationTest {
 
-    @Container
-    static PostgreSQLContainer<?> postgres =
+    static final PostgreSQLContainer<?> postgres =
             new PostgreSQLContainer<>(DockerImageName.parse("postgres:16-alpine"));
 
-    @Container
-    static KafkaContainer kafka =
+    static final KafkaContainer kafka =
             new KafkaContainer(DockerImageName.parse("confluentinc/cp-kafka:7.6.0"));
+
+    static {
+        postgres.start();
+        kafka.start();
+    }
 
     @DynamicPropertySource
     static void overrideProperties(DynamicPropertyRegistry registry) {
