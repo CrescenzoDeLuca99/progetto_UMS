@@ -50,13 +50,13 @@ public class UserController {
         return ResponseEntity.ok(userService.updateUser(id, request));
     }
 
-    @PatchMapping("/{id}/disable")
+    @PostMapping("/{id}/disable")
     public ResponseEntity<Void> disableUser(@PathVariable Long id) {
         userService.disableUser(id);
         return ResponseEntity.noContent().build();
     }
 
-    @PatchMapping("/{id}/enable")
+    @PostMapping("/{id}/enable")
     public ResponseEntity<Void> enableUser(@PathVariable Long id) {
         userService.enableUser(id);
         return ResponseEntity.noContent().build();
