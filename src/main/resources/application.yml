@@ -5,19 +5,25 @@ spring:
   profiles:
     active: dev
 
+  mvc:
+    problemdetails:
+      enabled: true
+
+  jackson:
+    # Serializza le date come stringhe ISO-8601, non come timestamp numerici
+    serialization:
+      write-dates-as-timestamps: false
+    # Ignora campi sconosciuti nel JSON in ingresso invece di fallire
+    deserialization:
+      fail-on-unknown-properties: false
+    default-property-inclusion: non_null
+
   jpa:
     open-in-view: false
-    hibernate:
-      ddl-auto: validate
     properties:
       hibernate:
         dialect: org.hibernate.dialect.PostgreSQLDialect
         format_sql: true
-
-  flyway:
-    enabled: true
-    locations: classpath:db/migration
-    baseline-on-migrate: true
 
 server:
   port: 8080

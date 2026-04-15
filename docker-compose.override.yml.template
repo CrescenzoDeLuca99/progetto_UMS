@@ -1,9 +1,0 @@
-# Copia questo file in docker-compose.override.yml per personalizzare l'ambiente locale.
-# docker-compose.override.yml è ignorato da Git.
-#
-# Esempio: sovrascrittura delle credenziali del database
-#
-# services:
-#   postgres:
-#     environment:
-#       POSTGRES_PASSWORD: mia_password_locale
