@@ -1,0 +1,25 @@
+{
+  "realm": "user-management",
+  "enabled": true,
+  "roles": {
+    "realm": [
+      { "name": "ADMIN",      "description": "Accesso completo" },
+      { "name": "OPERATOR",   "description": "Gestione utenti e stato" },
+      { "name": "MAINTAINER", "description": "Creazione e modifica utenti" },
+      { "name": "DEVELOPER",  "description": "Lettura" },
+      { "name": "REPORTER",   "description": "Lettura" }
+    ]
+  },
+  "clients": [
+    {
+      "clientId": "user-management-client",
+      "enabled": true,
+      "publicClient": true,
+      "directAccessGrantsEnabled": true,
+      "standardFlowEnabled": false,
+      "protocol": "openid-connect",
+      "webOrigins": ["http://localhost:8080"],
+      "redirectUris": ["http://localhost:8080/*"]
+    }
+  ]
+}

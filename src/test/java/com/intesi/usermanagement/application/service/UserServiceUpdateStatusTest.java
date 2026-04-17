@@ -93,13 +93,13 @@ class UserServiceUpdateStatusTest {
                 .username("gverdi")
                 .nome("Giuseppe")
                 .cognome("Verdi")
-                .roles(Set.of(RoleName.OWNER))
+                .roles(Set.of(RoleName.ADMIN))
                 .build();
-        Role ownerRole = new Role(RoleName.OWNER);
+        Role ownerRole = new Role(RoleName.ADMIN);
 
         when(userRepository.findByIdAndStatusNot(1L, UserStatus.DELETED)).thenReturn(Optional.of(existingUser));
         when(userRepository.existsByUsernameAndIdNot("gverdi", 1L)).thenReturn(false);
-        when(roleRepository.findByName(RoleName.OWNER)).thenReturn(Optional.of(ownerRole));
+        when(roleRepository.findByName(RoleName.ADMIN)).thenReturn(Optional.of(ownerRole));
         when(userRepository.save(any(User.class))).thenReturn(existingUser);
         when(userMapper.toResponse(any())).thenReturn(new UserResponse());
 
@@ -167,15 +167,15 @@ class UserServiceUpdateStatusTest {
                 .username("mrossi")
                 .nome("Mario")
                 .cognome("Rossi")
-                .roles(Set.of(RoleName.OWNER))
+                .roles(Set.of(RoleName.ADMIN))
                 .build();
 
         when(userRepository.findByIdAndStatusNot(1L, UserStatus.DELETED)).thenReturn(Optional.of(existingUser));
-        when(roleRepository.findByName(RoleName.OWNER)).thenReturn(Optional.empty());
+        when(roleRepository.findByName(RoleName.ADMIN)).thenReturn(Optional.empty());
 
         assertThatThrownBy(() -> userService.updateUser(1L, request))
                 .isInstanceOf(RoleNotFoundException.class)
-                .hasMessageContaining("OWNER");
+                .hasMessageContaining("ADMIN");
 
         verify(userRepository, never()).save(any());
     }
