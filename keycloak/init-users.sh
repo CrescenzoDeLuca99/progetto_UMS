@@ -42,7 +42,7 @@ create_user() {
   /opt/keycloak/bin/kcadm.sh update users/"$USER_ID" -r "$REALM" -s 'requiredActions=[]'
 }
 
-create_user "admin-user"    "admin"     "ADMIN"
+create_user "admin-user"    "admin"     "OWNER"
 create_user "operator-user" "operator"  "OPERATOR"
 create_user "dev-user"      "developer" "DEVELOPER"
 

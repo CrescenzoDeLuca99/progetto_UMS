@@ -103,6 +103,43 @@ services:
       retries: 5
     restart: unless-stopped
 
+  app:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: ums-app
+    depends_on:
+      postgres:
+        condition: service_healthy
+      kafka:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+      keycloak:
+        condition: service_healthy
+    ports:
+      - "8080:8080"
+    environment:
+      SPRING_PROFILES_ACTIVE: dev
+      # override dei soli valori che cambiano rispetto al profilo dev locale
+      SPRING_DATASOURCE_URL: jdbc:postgresql://postgres:5432/usermanagement
+      SPRING_DATASOURCE_USERNAME: ${POSTGRES_USER:-usermgmt}
+      SPRING_DATASOURCE_PASSWORD: ${POSTGRES_PASSWORD:-usermgmt}
+      SPRING_DATA_REDIS_HOST: redis
+      SPRING_KAFKA_BOOTSTRAP_SERVERS: kafka:29092
+      # jwk-set-uri invece di issuer-uri: il fetch delle chiavi avviene via
+      # hostname interno Docker (keycloak:8180), senza imporre che il claim
+      # iss del token coincida con quell'hostname (i token rimangono emessi
+      # con iss=localhost:8180, validi sia da browser che dall'app container)
+      SPRING_SECURITY_OAUTH2_RESOURCESERVER_JWT_JWK_SET_URI: http://keycloak:8180/realms/user-management/protocol/openid-connect/certs
+    healthcheck:
+      test: [ "CMD-SHELL", "wget -qO- http://localhost:8080/actuator/health || exit 1" ]
+      interval: 15s
+      timeout: 10s
+      retries: 5
+      start_period: 60s
+    restart: unless-stopped
+
 volumes:
   postgres_data:
     name: ums-postgres-data

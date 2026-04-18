@@ -28,7 +28,7 @@ public class UserController {
     private final UserQueryUseCase queryUseCase;
 
     @PostMapping
-    @PreAuthorize("hasAnyRole('ADMIN','OPERATOR','MAINTAINER')")
+    @PreAuthorize("hasAnyRole('OWNER','OPERATOR','MAINTAINER')")
     public ResponseEntity<UserResponse> createUser(@Valid @RequestBody CreateUserRequest request) {
         UserResponse created = commandUseCase.createUser(request);
         URI location = ServletUriComponentsBuilder.fromCurrentRequest()
@@ -50,7 +50,7 @@ public class UserController {
     }
 
     @PutMapping("/{id}")
-    @PreAuthorize("hasAnyRole('ADMIN','OPERATOR','MAINTAINER')")
+    @PreAuthorize("hasAnyRole('OWNER','OPERATOR','MAINTAINER')")
     public ResponseEntity<UserResponse> updateUser(
             @PathVariable Long id,
             @Valid @RequestBody UpdateUserRequest request) {
@@ -58,21 +58,21 @@ public class UserController {
     }
 
     @PostMapping("/{id}/disable")
-    @PreAuthorize("hasAnyRole('ADMIN','OPERATOR')")
+    @PreAuthorize("hasAnyRole('OWNER','OPERATOR')")
     public ResponseEntity<Void> disableUser(@PathVariable Long id) {
         commandUseCase.disableUser(id);
         return ResponseEntity.noContent().build();
     }
 
     @PostMapping("/{id}/enable")
-    @PreAuthorize("hasAnyRole('ADMIN','OPERATOR')")
+    @PreAuthorize("hasAnyRole('OWNER','OPERATOR')")
     public ResponseEntity<Void> enableUser(@PathVariable Long id) {
         commandUseCase.enableUser(id);
         return ResponseEntity.noContent().build();
     }
 
     @DeleteMapping("/{id}")
-    @PreAuthorize("hasRole('ADMIN')")
+    @PreAuthorize("hasRole('OWNER')")
     public ResponseEntity<Void> deleteUser(@PathVariable Long id) {
         commandUseCase.deleteUser(id);
         return ResponseEntity.noContent().build();

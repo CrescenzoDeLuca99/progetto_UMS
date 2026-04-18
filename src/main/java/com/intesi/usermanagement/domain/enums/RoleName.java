@@ -1,7 +1,7 @@
 package com.intesi.usermanagement.domain.enums;
 
 public enum RoleName {
-    ADMIN,
+    OWNER,
     OPERATOR,
     MAINTAINER,
     DEVELOPER,

@@ -34,7 +34,7 @@ class UserControllerRbacIT extends AbstractIntegrationTest {
     @BeforeEach
     void setUp() {
         userRepository.deleteAll();
-        // configureAuth() (parent) ha già impostato il token ADMIN: si può creare l'utente di fixture
+        // configureAuth() (parent) ha già impostato il token OWNER: si può creare l'utente di fixture
         UserResponse created = restTemplate
                 .postForEntity("/users", buildRequest("rbac-fixture"), UserResponse.class)
                 .getBody();

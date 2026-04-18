@@ -43,7 +43,7 @@ class UserControllerUpdateStatusIT extends AbstractIntegrationTest {
                 .username("mrossi_new")
                 .nome("Mario Updated")
                 .cognome("Rossi Updated")
-                .roles(Set.of(RoleName.ADMIN))
+                .roles(Set.of(RoleName.OWNER))
                 .build();
 
         ResponseEntity<UserResponse> response = restTemplate.exchange(
@@ -56,7 +56,7 @@ class UserControllerUpdateStatusIT extends AbstractIntegrationTest {
         assertThat(body.getUsername()).isEqualTo("mrossi_new");
         assertThat(body.getNome()).isEqualTo("Mario Updated");
         assertThat(body.getCognome()).isEqualTo("Rossi Updated");
-        assertThat(body.getRoles()).containsExactly(RoleName.ADMIN);
+        assertThat(body.getRoles()).containsExactly(RoleName.OWNER);
     }
 
     @Test

@@ -57,12 +57,12 @@ public abstract class AbstractIntegrationTest {
     }
 
     /*
-      Configura TestRestTemplate con un token ADMIN prima di ogni test.
+      Configura TestRestTemplate con un token OWNER prima di ogni test.
       I test RBAC possono sovrascrivere l'interceptor con ruoli diversi.
      */
     @BeforeEach
     void configureAuth(@Autowired TestRestTemplate restTemplate) {
-        setTokenRoles(restTemplate, List.of("ADMIN"));
+        setTokenRoles(restTemplate, List.of("OWNER"));
     }
 
     /*
