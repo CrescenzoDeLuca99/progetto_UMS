@@ -1,5 +1,6 @@
 package com.intesi.usermanagement.domain.model;
 
+import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
 import com.intesi.usermanagement.domain.enums.UserStatus;
 import jakarta.persistence.*;
 import lombok.*;
@@ -12,6 +13,7 @@ import java.util.Set;
 
 @Entity
 @Table(name = "users")
+@JsonIgnoreProperties({"hibernateLazyInitializer", "handler"})
 @Getter
 @Setter
 @NoArgsConstructor

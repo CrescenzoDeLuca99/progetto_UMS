@@ -23,6 +23,9 @@ public interface UserRepository extends JpaRepository<User, Long>, JpaSpecificat
 
     boolean existsByUsernameAndIdNot(String username, Long id);
 
+    @Query("SELECT u FROM User u LEFT JOIN FETCH u.roles WHERE u.id = :id")
+    Optional<User> findByIdWithRoles(@Param("id") Long id);
+
     @Query("""
             SELECT DISTINCT u FROM User u
             JOIN FETCH u.roles r

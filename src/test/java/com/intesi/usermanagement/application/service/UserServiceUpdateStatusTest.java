@@ -9,8 +9,10 @@ import com.intesi.usermanagement.dto.response.UserResponse;
 import com.intesi.usermanagement.exception.RoleNotFoundException;
 import com.intesi.usermanagement.exception.UserAlreadyExistsException;
 import com.intesi.usermanagement.exception.UserNotFoundException;
-import com.intesi.usermanagement.infrastructure.repository.RoleRepository;
-import com.intesi.usermanagement.infrastructure.repository.UserRepository;
+import com.intesi.usermanagement.infrastructure.dao.RoleDao;
+import com.intesi.usermanagement.infrastructure.dao.UserDao;
+import com.intesi.usermanagement.infrastructure.messaging.UserEventPublisher;
+import com.intesi.usermanagement.infrastructure.messaging.UserEventType;
 import com.intesi.usermanagement.mapper.UserMapper;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -32,13 +34,16 @@ import static org.mockito.Mockito.*;
 class UserServiceUpdateStatusTest {
 
     @Mock
-    private UserRepository userRepository;
+    private UserDao userDao;
 
     @Mock
-    private RoleRepository roleRepository;
+    private RoleDao roleDao;
 
     @Mock
     private UserMapper userMapper;
+
+    @Mock
+    private UserEventPublisher eventPublisher;
 
     @InjectMocks
     private UserService userService;
@@ -76,15 +81,15 @@ class UserServiceUpdateStatusTest {
         Role developerRole = new Role(RoleName.DEVELOPER);
         UserResponse expectedResponse = UserResponse.builder().id(1L).username("mrossi").build();
 
-        when(userRepository.findByIdAndStatusNot(1L, UserStatus.DELETED)).thenReturn(Optional.of(existingUser));
-        when(roleRepository.findByName(RoleName.DEVELOPER)).thenReturn(Optional.of(developerRole));
-        when(userRepository.save(any(User.class))).thenReturn(existingUser);
+        when(userDao.findByIdAndStatusNot(1L, UserStatus.DELETED)).thenReturn(Optional.of(existingUser));
+        when(roleDao.findByName(RoleName.DEVELOPER)).thenReturn(Optional.of(developerRole));
+        when(userDao.save(any(User.class))).thenReturn(existingUser);
         when(userMapper.toResponse(existingUser)).thenReturn(expectedResponse);
 
         UserResponse result = userService.updateUser(1L, validRequest);
 
         assertThat(result).isEqualTo(expectedResponse);
-        verify(userRepository).save(existingUser);
+        verify(userDao).save(existingUser);
     }
 
     @Test
@@ -97,16 +102,16 @@ class UserServiceUpdateStatusTest {
                 .build();
         Role ownerRole = new Role(RoleName.ADMIN);
 
-        when(userRepository.findByIdAndStatusNot(1L, UserStatus.DELETED)).thenReturn(Optional.of(existingUser));
-        when(userRepository.existsByUsernameAndIdNot("gverdi", 1L)).thenReturn(false);
-        when(roleRepository.findByName(RoleName.ADMIN)).thenReturn(Optional.of(ownerRole));
-        when(userRepository.save(any(User.class))).thenReturn(existingUser);
+        when(userDao.findByIdAndStatusNot(1L, UserStatus.DELETED)).thenReturn(Optional.of(existingUser));
+        when(userDao.existsByUsernameAndIdNot("gverdi", 1L)).thenReturn(false);
+        when(roleDao.findByName(RoleName.ADMIN)).thenReturn(Optional.of(ownerRole));
+        when(userDao.save(any(User.class))).thenReturn(existingUser);
         when(userMapper.toResponse(any())).thenReturn(new UserResponse());
 
         userService.updateUser(1L, request);
 
         ArgumentCaptor<User> captor = ArgumentCaptor.forClass(User.class);
-        verify(userRepository).save(captor.capture());
+        verify(userDao).save(captor.capture());
         User saved = captor.getValue();
         assertThat(saved.getUsername()).isEqualTo("gverdi");
         assertThat(saved.getNome()).isEqualTo("Giuseppe");
@@ -117,14 +122,14 @@ class UserServiceUpdateStatusTest {
     @Test
     void shouldAllowUpdateWithSameUsername() {
         // username invariato: il controllo di unicità non deve scattare
-        when(userRepository.findByIdAndStatusNot(1L, UserStatus.DELETED)).thenReturn(Optional.of(existingUser));
-        when(roleRepository.findByName(RoleName.DEVELOPER)).thenReturn(Optional.of(new Role(RoleName.DEVELOPER)));
-        when(userRepository.save(any())).thenReturn(existingUser);
+        when(userDao.findByIdAndStatusNot(1L, UserStatus.DELETED)).thenReturn(Optional.of(existingUser));
+        when(roleDao.findByName(RoleName.DEVELOPER)).thenReturn(Optional.of(new Role(RoleName.DEVELOPER)));
+        when(userDao.save(any())).thenReturn(existingUser);
         when(userMapper.toResponse(any())).thenReturn(new UserResponse());
 
         userService.updateUser(1L, validRequest);
 
-        verify(userRepository, never()).existsByUsernameAndIdNot(any(), any());
+        verify(userDao, never()).existsByUsernameAndIdNot(any(), any());
     }
 
     // -------------------------------------------------------------------------
@@ -133,13 +138,13 @@ class UserServiceUpdateStatusTest {
 
     @Test
     void shouldThrowWhenUserNotFoundOnUpdate() {
-        when(userRepository.findByIdAndStatusNot(99L, UserStatus.DELETED)).thenReturn(Optional.empty());
+        when(userDao.findByIdAndStatusNot(99L, UserStatus.DELETED)).thenReturn(Optional.empty());
 
         assertThatThrownBy(() -> userService.updateUser(99L, validRequest))
                 .isInstanceOf(UserNotFoundException.class)
                 .hasMessageContaining("99");
 
-        verify(userRepository, never()).save(any());
+        verify(userDao, never()).save(any());
     }
 
     @Test
@@ -151,14 +156,14 @@ class UserServiceUpdateStatusTest {
                 .roles(Set.of(RoleName.DEVELOPER))
                 .build();
 
-        when(userRepository.findByIdAndStatusNot(1L, UserStatus.DELETED)).thenReturn(Optional.of(existingUser));
-        when(userRepository.existsByUsernameAndIdNot("altro_utente", 1L)).thenReturn(true);
+        when(userDao.findByIdAndStatusNot(1L, UserStatus.DELETED)).thenReturn(Optional.of(existingUser));
+        when(userDao.existsByUsernameAndIdNot("altro_utente", 1L)).thenReturn(true);
 
         assertThatThrownBy(() -> userService.updateUser(1L, request))
                 .isInstanceOf(UserAlreadyExistsException.class)
                 .hasMessageContaining("username");
 
-        verify(userRepository, never()).save(any());
+        verify(userDao, never()).save(any());
     }
 
     @Test
@@ -170,14 +175,14 @@ class UserServiceUpdateStatusTest {
                 .roles(Set.of(RoleName.ADMIN))
                 .build();
 
-        when(userRepository.findByIdAndStatusNot(1L, UserStatus.DELETED)).thenReturn(Optional.of(existingUser));
-        when(roleRepository.findByName(RoleName.ADMIN)).thenReturn(Optional.empty());
+        when(userDao.findByIdAndStatusNot(1L, UserStatus.DELETED)).thenReturn(Optional.of(existingUser));
+        when(roleDao.findByName(RoleName.ADMIN)).thenReturn(Optional.empty());
 
         assertThatThrownBy(() -> userService.updateUser(1L, request))
                 .isInstanceOf(RoleNotFoundException.class)
                 .hasMessageContaining("ADMIN");
 
-        verify(userRepository, never()).save(any());
+        verify(userDao, never()).save(any());
     }
 
     // -------------------------------------------------------------------------
@@ -186,25 +191,25 @@ class UserServiceUpdateStatusTest {
 
     @Test
     void shouldDisableUser() {
-        when(userRepository.findByIdAndStatusNot(1L, UserStatus.DELETED)).thenReturn(Optional.of(existingUser));
-        when(userRepository.save(any(User.class))).thenReturn(existingUser);
+        when(userDao.findByIdAndStatusNot(1L, UserStatus.DELETED)).thenReturn(Optional.of(existingUser));
+        when(userDao.save(any(User.class))).thenReturn(existingUser);
 
         userService.disableUser(1L);
 
         ArgumentCaptor<User> captor = ArgumentCaptor.forClass(User.class);
-        verify(userRepository).save(captor.capture());
+        verify(userDao).save(captor.capture());
         assertThat(captor.getValue().getStatus()).isEqualTo(UserStatus.DISABLED);
     }
 
     @Test
     void shouldThrowWhenUserNotFoundOnDisable() {
-        when(userRepository.findByIdAndStatusNot(99L, UserStatus.DELETED)).thenReturn(Optional.empty());
+        when(userDao.findByIdAndStatusNot(99L, UserStatus.DELETED)).thenReturn(Optional.empty());
 
         assertThatThrownBy(() -> userService.disableUser(99L))
                 .isInstanceOf(UserNotFoundException.class)
                 .hasMessageContaining("99");
 
-        verify(userRepository, never()).save(any());
+        verify(userDao, never()).save(any());
     }
 
     // -------------------------------------------------------------------------
@@ -214,25 +219,25 @@ class UserServiceUpdateStatusTest {
     @Test
     void shouldEnableUser() {
         existingUser.setStatus(UserStatus.DISABLED);
-        when(userRepository.findByIdAndStatusNot(1L, UserStatus.DELETED)).thenReturn(Optional.of(existingUser));
-        when(userRepository.save(any(User.class))).thenReturn(existingUser);
+        when(userDao.findByIdAndStatusNot(1L, UserStatus.DELETED)).thenReturn(Optional.of(existingUser));
+        when(userDao.save(any(User.class))).thenReturn(existingUser);
 
         userService.enableUser(1L);
 
         ArgumentCaptor<User> captor = ArgumentCaptor.forClass(User.class);
-        verify(userRepository).save(captor.capture());
+        verify(userDao).save(captor.capture());
         assertThat(captor.getValue().getStatus()).isEqualTo(UserStatus.ACTIVE);
     }
 
     @Test
     void shouldThrowWhenUserNotFoundOnEnable() {
-        when(userRepository.findByIdAndStatusNot(99L, UserStatus.DELETED)).thenReturn(Optional.empty());
+        when(userDao.findByIdAndStatusNot(99L, UserStatus.DELETED)).thenReturn(Optional.empty());
 
         assertThatThrownBy(() -> userService.enableUser(99L))
                 .isInstanceOf(UserNotFoundException.class)
                 .hasMessageContaining("99");
 
-        verify(userRepository, never()).save(any());
+        verify(userDao, never()).save(any());
     }
 
     // -------------------------------------------------------------------------
@@ -241,35 +246,80 @@ class UserServiceUpdateStatusTest {
 
     @Test
     void shouldSoftDeleteUser() {
-        when(userRepository.findByIdAndStatusNot(1L, UserStatus.DELETED)).thenReturn(Optional.of(existingUser));
-        when(userRepository.save(any(User.class))).thenReturn(existingUser);
+        when(userDao.findByIdAndStatusNot(1L, UserStatus.DELETED)).thenReturn(Optional.of(existingUser));
+        when(userDao.save(any(User.class))).thenReturn(existingUser);
 
         userService.deleteUser(1L);
 
         ArgumentCaptor<User> captor = ArgumentCaptor.forClass(User.class);
-        verify(userRepository).save(captor.capture());
+        verify(userDao).save(captor.capture());
         assertThat(captor.getValue().getStatus()).isEqualTo(UserStatus.DELETED);
     }
 
     @Test
     void shouldThrowWhenUserNotFoundOnDelete() {
-        when(userRepository.findByIdAndStatusNot(99L, UserStatus.DELETED)).thenReturn(Optional.empty());
+        when(userDao.findByIdAndStatusNot(99L, UserStatus.DELETED)).thenReturn(Optional.empty());
 
         assertThatThrownBy(() -> userService.deleteUser(99L))
                 .isInstanceOf(UserNotFoundException.class)
                 .hasMessageContaining("99");
 
-        verify(userRepository, never()).save(any());
+        verify(userDao, never()).save(any());
     }
 
     @Test
     void shouldThrowWhenUserAlreadyDeleted() {
-        // Un utente con status DELETED non è trovato da findByIdAndStatusNot(DELETED)
-        when(userRepository.findByIdAndStatusNot(1L, UserStatus.DELETED)).thenReturn(Optional.empty());
+        when(userDao.findByIdAndStatusNot(1L, UserStatus.DELETED)).thenReturn(Optional.empty());
 
         assertThatThrownBy(() -> userService.deleteUser(1L))
                 .isInstanceOf(UserNotFoundException.class);
 
-        verify(userRepository, never()).save(any());
+        verify(userDao, never()).save(any());
+    }
+
+    // -------------------------------------------------------------------------
+    // Pubblicazione eventi
+    // -------------------------------------------------------------------------
+
+    @Test
+    void shouldPublishUpdatedEvent() {
+        when(userDao.findByIdAndStatusNot(1L, UserStatus.DELETED)).thenReturn(Optional.of(existingUser));
+        when(roleDao.findByName(RoleName.DEVELOPER)).thenReturn(Optional.of(new Role(RoleName.DEVELOPER)));
+        when(userDao.save(any())).thenReturn(existingUser);
+        when(userMapper.toResponse(any())).thenReturn(new UserResponse());
+
+        userService.updateUser(1L, validRequest);
+
+        verify(eventPublisher).publish(UserEventType.UPDATED, existingUser);
+    }
+
+    @Test
+    void shouldPublishDisabledEvent() {
+        when(userDao.findByIdAndStatusNot(1L, UserStatus.DELETED)).thenReturn(Optional.of(existingUser));
+        when(userDao.save(any())).thenReturn(existingUser);
+
+        userService.disableUser(1L);
+
+        verify(eventPublisher).publish(UserEventType.DISABLED, existingUser);
+    }
+
+    @Test
+    void shouldPublishEnabledEvent() {
+        when(userDao.findByIdAndStatusNot(1L, UserStatus.DELETED)).thenReturn(Optional.of(existingUser));
+        when(userDao.save(any())).thenReturn(existingUser);
+
+        userService.enableUser(1L);
+
+        verify(eventPublisher).publish(UserEventType.ENABLED, existingUser);
+    }
+
+    @Test
+    void shouldPublishDeletedEvent() {
+        when(userDao.findByIdAndStatusNot(1L, UserStatus.DELETED)).thenReturn(Optional.of(existingUser));
+        when(userDao.save(any())).thenReturn(existingUser);
+
+        userService.deleteUser(1L);
+
+        verify(eventPublisher).publish(UserEventType.DELETED, existingUser);
     }
 }

@@ -11,10 +11,26 @@ spring:
     hibernate:
       ddl-auto: create-drop
 
+  data:
+    redis:
+      host: localhost  # overridden by DynamicPropertySource
+      port: 6379       # overridden by DynamicPropertySource
+
+  cache:
+    type: redis
+
   kafka:
     bootstrap-servers: localhost:9092
+    producer:
+      key-serializer: org.apache.kafka.common.serialization.StringSerializer
+      value-serializer: org.springframework.kafka.support.serializer.JsonSerializer
+      properties:
+        spring.json.add.type.headers: false
 
-  # TODO: aggiungere configurazione JWT per test (chiave pubblica RSA statica)
+app:
+  kafka:
+    topics:
+      user-events: user-events-test
 
 logging:
   level:

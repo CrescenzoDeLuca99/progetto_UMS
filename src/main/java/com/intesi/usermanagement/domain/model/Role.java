@@ -1,5 +1,6 @@
 package com.intesi.usermanagement.domain.model;
 
+import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
 import com.intesi.usermanagement.domain.enums.RoleName;
 import jakarta.persistence.*;
 import lombok.Getter;
@@ -8,6 +9,7 @@ import lombok.Setter;
 
 @Entity
 @Table(name = "roles")
+@JsonIgnoreProperties({"hibernateLazyInitializer", "handler"})
 @Getter
 @Setter
 @NoArgsConstructor

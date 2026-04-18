@@ -10,10 +10,8 @@ spring:
       enabled: true
 
   jackson:
-    # Serializza le date come stringhe ISO-8601, non come timestamp numerici
     serialization:
       write-dates-as-timestamps: false
-    # Ignora campi sconosciuti nel JSON in ingresso invece di fallire
     deserialization:
       fail-on-unknown-properties: false
     default-property-inclusion: non_null
@@ -29,15 +27,6 @@ server:
   port: 8080
   servlet:
     context-path: /
-
-management:
-  endpoints:
-    web:
-      exposure:
-        include: health,info,metrics
-  endpoint:
-    health:
-      show-details: when-authorized
 
 springdoc:
   api-docs:

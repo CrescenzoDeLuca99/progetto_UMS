@@ -9,8 +9,10 @@ import com.intesi.usermanagement.dto.response.UserResponse;
 import com.intesi.usermanagement.exception.RoleNotFoundException;
 import com.intesi.usermanagement.exception.UserAlreadyExistsException;
 import com.intesi.usermanagement.exception.UserNotFoundException;
-import com.intesi.usermanagement.infrastructure.repository.RoleRepository;
-import com.intesi.usermanagement.infrastructure.repository.UserRepository;
+import com.intesi.usermanagement.infrastructure.dao.RoleDao;
+import com.intesi.usermanagement.infrastructure.dao.UserDao;
+import com.intesi.usermanagement.infrastructure.messaging.UserEventPublisher;
+import com.intesi.usermanagement.infrastructure.messaging.UserEventType;
 import com.intesi.usermanagement.mapper.UserMapper;
 import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.Page;
@@ -25,19 +27,20 @@ import java.util.stream.Collectors;
 @RequiredArgsConstructor
 public class UserService {
 
-    private final UserRepository userRepository;
-    private final RoleRepository roleRepository;
+    private final UserDao userDao;
+    private final RoleDao roleDao;
     private final UserMapper userMapper;
+    private final UserEventPublisher eventPublisher;
 
     @Transactional
     public UserResponse createUser(CreateUserRequest request) {
-        if (userRepository.existsByUsername(request.getUsername())) {
+        if (userDao.existsByUsername(request.getUsername())) {
             throw new UserAlreadyExistsException("username", request.getUsername());
         }
-        if (userRepository.existsByEmail(request.getEmail())) {
+        if (userDao.existsByEmail(request.getEmail())) {
             throw new UserAlreadyExistsException("email", request.getEmail());
         }
-        if (userRepository.existsByCodiceFiscale(request.getCodiceFiscale())) {
+        if (userDao.existsByCodiceFiscale(request.getCodiceFiscale())) {
             throw new UserAlreadyExistsException("codiceFiscale", request.getCodiceFiscale());
         }
 
@@ -52,34 +55,36 @@ public class UserService {
                 .roles(roles)
                 .build();
 
-        return userMapper.toResponse(userRepository.save(user));
+        User saved = userDao.save(user);
+        eventPublisher.publish(UserEventType.CREATED, saved);
+        return userMapper.toResponse(saved);
     }
 
     @Transactional(readOnly = true)
     public UserResponse getUserById(Long id) {
-        User user = userRepository.findByIdAndStatusNot(id, UserStatus.DELETED)
+        User user = userDao.findByIdAndStatusNot(id, UserStatus.DELETED)
                 .orElseThrow(() -> new UserNotFoundException(id));
         return userMapper.toResponse(user);
     }
 
     @Transactional(readOnly = true)
     public Page<UserResponse> listUsers(Pageable pageable) {
-        return userRepository.findAllExcludingStatus(UserStatus.DELETED, pageable)
+        return userDao.findAllExcludingStatus(UserStatus.DELETED, pageable)
                 .map(userMapper::toResponse);
     }
 
     @Transactional
     public UserResponse updateUser(Long id, UpdateUserRequest request) {
-        User user = userRepository.findByIdAndStatusNot(id, UserStatus.DELETED)
+        User user = userDao.findByIdAndStatusNot(id, UserStatus.DELETED)
                 .orElseThrow(() -> new UserNotFoundException(id));
 
         if (!user.getUsername().equals(request.getUsername()) &&
-                userRepository.existsByUsernameAndIdNot(request.getUsername(), id)) {
+                userDao.existsByUsernameAndIdNot(request.getUsername(), id)) {
             throw new UserAlreadyExistsException("username", request.getUsername());
         }
 
         Set<Role> roles = request.getRoles().stream()
-                .map(roleName -> roleRepository.findByName(roleName)
+                .map(roleName -> roleDao.findByName(roleName)
                         .orElseThrow(() -> new RoleNotFoundException(roleName)))
                 .collect(Collectors.toSet());
 
@@ -88,36 +93,41 @@ public class UserService {
         user.setCognome(request.getCognome());
         user.setRoles(roles);
 
-        return userMapper.toResponse(userRepository.save(user));
+        User saved = userDao.save(user);
+        eventPublisher.publish(UserEventType.UPDATED, saved);
+        return userMapper.toResponse(saved);
     }
 
     @Transactional
     public void disableUser(Long id) {
-        User user = userRepository.findByIdAndStatusNot(id, UserStatus.DELETED)
+        User user = userDao.findByIdAndStatusNot(id, UserStatus.DELETED)
                 .orElseThrow(() -> new UserNotFoundException(id));
         user.setStatus(UserStatus.DISABLED);
-        userRepository.save(user);
+        userDao.save(user);
+        eventPublisher.publish(UserEventType.DISABLED, user);
     }
 
     @Transactional
     public void enableUser(Long id) {
-        User user = userRepository.findByIdAndStatusNot(id, UserStatus.DELETED)
+        User user = userDao.findByIdAndStatusNot(id, UserStatus.DELETED)
                 .orElseThrow(() -> new UserNotFoundException(id));
         user.setStatus(UserStatus.ACTIVE);
-        userRepository.save(user);
+        userDao.save(user);
+        eventPublisher.publish(UserEventType.ENABLED, user);
     }
 
     @Transactional
     public void deleteUser(Long id) {
-        User user = userRepository.findByIdAndStatusNot(id, UserStatus.DELETED)
+        User user = userDao.findByIdAndStatusNot(id, UserStatus.DELETED)
                 .orElseThrow(() -> new UserNotFoundException(id));
         user.setStatus(UserStatus.DELETED);
-        userRepository.save(user);
+        userDao.save(user);
+        eventPublisher.publish(UserEventType.DELETED, user);
     }
 
     private Set<Role> resolveRoles(CreateUserRequest request) {
         return request.getRoles().stream()
-                .map(roleName -> roleRepository.findByName(roleName)
+                .map(roleName -> roleDao.findByName(roleName)
                         .orElseThrow(() -> new RoleNotFoundException(roleName)))
                 .collect(Collectors.toSet());
     }
