@@ -1,10 +1,11 @@
 package com.intesi.usermanagement.infrastructure.dao.impl;
 
+import com.intesi.usermanagement.application.port.out.UserPersistencePort;
 import com.intesi.usermanagement.domain.enums.UserStatus;
 import com.intesi.usermanagement.domain.model.User;
-import com.intesi.usermanagement.infrastructure.dao.UserDao;
 import com.intesi.usermanagement.infrastructure.repository.UserRepository;
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.cache.annotation.CachePut;
 import org.springframework.cache.annotation.Cacheable;
@@ -15,9 +16,10 @@ import org.springframework.stereotype.Component;
 
 import java.util.Optional;
 
+@Slf4j
 @Component
 @RequiredArgsConstructor
-public class UserDaoImpl implements UserDao {
+public class UserDaoImpl implements UserPersistencePort {
 
     private final UserRepository repository;
 
@@ -41,8 +43,10 @@ public class UserDaoImpl implements UserDao {
                 .filter(u -> u.getStatus() != status);
     }
 
+    // restituisce null anziché Optional: @Cacheable non gestisce bene Optional come valore cacheable
     @Cacheable(value = "users", key = "#id")
     public User loadById(Long id) {
+        log.debug("Cache miss utente id={}, fetch da DB", id);
         return repository.findByIdWithRoles(id).orElse(null);
     }
 

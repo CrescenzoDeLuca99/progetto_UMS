@@ -1,5 +1,6 @@
 package com.intesi.usermanagement.infrastructure.messaging;
 
+import com.intesi.usermanagement.domain.enums.UserEventType;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Getter;

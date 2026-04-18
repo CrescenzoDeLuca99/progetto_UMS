@@ -1,4 +1,4 @@
-package com.intesi.usermanagement.infrastructure.dao;
+package com.intesi.usermanagement.application.port.out;
 
 import com.intesi.usermanagement.domain.enums.UserStatus;
 import com.intesi.usermanagement.domain.model.User;
@@ -7,7 +7,7 @@ import org.springframework.data.domain.Pageable;
 
 import java.util.Optional;
 
-public interface UserDao {
+public interface UserPersistencePort {
 
     User save(User user);
 

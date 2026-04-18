@@ -1,11 +1,11 @@
-package com.intesi.usermanagement.infrastructure.dao;
+package com.intesi.usermanagement.application.port.out;
 
 import com.intesi.usermanagement.domain.enums.RoleName;
 import com.intesi.usermanagement.domain.model.Role;
 
 import java.util.Optional;
 
-public interface RoleDao {
+public interface RolePersistencePort {
 
     Optional<Role> findByName(RoleName name);
 }

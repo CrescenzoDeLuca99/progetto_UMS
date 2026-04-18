@@ -1,5 +1,11 @@
 package com.intesi.usermanagement.application.service;
 
+import com.intesi.usermanagement.application.port.in.UserCommandUseCase;
+import com.intesi.usermanagement.application.port.in.UserQueryUseCase;
+import com.intesi.usermanagement.application.port.out.RolePersistencePort;
+import com.intesi.usermanagement.application.port.out.UserEventPort;
+import com.intesi.usermanagement.application.port.out.UserPersistencePort;
+import com.intesi.usermanagement.domain.enums.UserEventType;
 import com.intesi.usermanagement.domain.enums.UserStatus;
 import com.intesi.usermanagement.domain.model.Role;
 import com.intesi.usermanagement.domain.model.User;
@@ -9,12 +15,9 @@ import com.intesi.usermanagement.dto.response.UserResponse;
 import com.intesi.usermanagement.exception.RoleNotFoundException;
 import com.intesi.usermanagement.exception.UserAlreadyExistsException;
 import com.intesi.usermanagement.exception.UserNotFoundException;
-import com.intesi.usermanagement.infrastructure.dao.RoleDao;
-import com.intesi.usermanagement.infrastructure.dao.UserDao;
-import com.intesi.usermanagement.infrastructure.messaging.UserEventPublisher;
-import com.intesi.usermanagement.infrastructure.messaging.UserEventType;
 import com.intesi.usermanagement.mapper.UserMapper;
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
@@ -23,24 +26,27 @@ import org.springframework.transaction.annotation.Transactional;
 import java.util.Set;
 import java.util.stream.Collectors;
 
+@Slf4j
 @Service
 @RequiredArgsConstructor
-public class UserService {
+public class UserService implements UserCommandUseCase, UserQueryUseCase {
 
-    private final UserDao userDao;
-    private final RoleDao roleDao;
+    private final UserPersistencePort userPersistence;
+    private final RolePersistencePort rolePersistence;
     private final UserMapper userMapper;
-    private final UserEventPublisher eventPublisher;
+    private final UserEventPort eventPort;
 
+    @Override
     @Transactional
     public UserResponse createUser(CreateUserRequest request) {
-        if (userDao.existsByUsername(request.getUsername())) {
+        log.info("Creazione utente: username={}, email={}", request.getUsername(), request.getEmail());
+        if (userPersistence.existsByUsername(request.getUsername())) {
             throw new UserAlreadyExistsException("username", request.getUsername());
         }
-        if (userDao.existsByEmail(request.getEmail())) {
+        if (userPersistence.existsByEmail(request.getEmail())) {
             throw new UserAlreadyExistsException("email", request.getEmail());
         }
-        if (userDao.existsByCodiceFiscale(request.getCodiceFiscale())) {
+        if (userPersistence.existsByCodiceFiscale(request.getCodiceFiscale())) {
             throw new UserAlreadyExistsException("codiceFiscale", request.getCodiceFiscale());
         }
 
@@ -49,42 +55,50 @@ public class UserService {
         User user = User.builder()
                 .username(request.getUsername())
                 .email(request.getEmail())
-                .codiceFiscale(request.getCodiceFiscale().toUpperCase())
+                .codiceFiscale(request.getCodiceFiscale().toUpperCase()) // normalizzazione: CF salvato sempre maiuscolo
                 .nome(request.getNome())
                 .cognome(request.getCognome())
                 .roles(roles)
                 .build();
 
-        User saved = userDao.save(user);
-        eventPublisher.publish(UserEventType.CREATED, saved);
+        User saved = userPersistence.save(user);
+        log.info("Utente creato: id={}, username={}", saved.getId(), saved.getUsername());
+        eventPort.publish(UserEventType.CREATED, saved);
         return userMapper.toResponse(saved);
     }
 
+    @Override
     @Transactional(readOnly = true)
     public UserResponse getUserById(Long id) {
-        User user = userDao.findByIdAndStatusNot(id, UserStatus.DELETED)
+        log.debug("Recupero utente id={}", id);
+        User user = userPersistence.findByIdAndStatusNot(id, UserStatus.DELETED)
                 .orElseThrow(() -> new UserNotFoundException(id));
         return userMapper.toResponse(user);
     }
 
+    @Override
     @Transactional(readOnly = true)
     public Page<UserResponse> listUsers(Pageable pageable) {
-        return userDao.findAllExcludingStatus(UserStatus.DELETED, pageable)
+        log.debug("Lista utenti: page={}, size={}", pageable.getPageNumber(), pageable.getPageSize());
+        return userPersistence.findAllExcludingStatus(UserStatus.DELETED, pageable)
                 .map(userMapper::toResponse);
     }
 
+    @Override
     @Transactional
     public UserResponse updateUser(Long id, UpdateUserRequest request) {
-        User user = userDao.findByIdAndStatusNot(id, UserStatus.DELETED)
+        log.info("Aggiornamento utente id={}", id);
+        User user = userPersistence.findByIdAndStatusNot(id, UserStatus.DELETED)
                 .orElseThrow(() -> new UserNotFoundException(id));
 
+        // controlla unicità solo se il nome utente è effettivamente cambiato, evitando falsi conflitti su se stesso
         if (!user.getUsername().equals(request.getUsername()) &&
-                userDao.existsByUsernameAndIdNot(request.getUsername(), id)) {
+                userPersistence.existsByUsernameAndIdNot(request.getUsername(), id)) {
             throw new UserAlreadyExistsException("username", request.getUsername());
         }
 
         Set<Role> roles = request.getRoles().stream()
-                .map(roleName -> roleDao.findByName(roleName)
+                .map(roleName -> rolePersistence.findByName(roleName)
                         .orElseThrow(() -> new RoleNotFoundException(roleName)))
                 .collect(Collectors.toSet());
 
@@ -93,41 +107,49 @@ public class UserService {
         user.setCognome(request.getCognome());
         user.setRoles(roles);
 
-        User saved = userDao.save(user);
-        eventPublisher.publish(UserEventType.UPDATED, saved);
+        User saved = userPersistence.save(user);
+        log.info("Utente aggiornato: id={}", saved.getId());
+        eventPort.publish(UserEventType.UPDATED, saved);
         return userMapper.toResponse(saved);
     }
 
+    @Override
     @Transactional
     public void disableUser(Long id) {
-        User user = userDao.findByIdAndStatusNot(id, UserStatus.DELETED)
+        User user = userPersistence.findByIdAndStatusNot(id, UserStatus.DELETED)
                 .orElseThrow(() -> new UserNotFoundException(id));
         user.setStatus(UserStatus.DISABLED);
-        userDao.save(user);
-        eventPublisher.publish(UserEventType.DISABLED, user);
+        userPersistence.save(user);
+        log.info("Utente disabilitato: id={}", id);
+        eventPort.publish(UserEventType.DISABLED, user);
     }
 
+    @Override
     @Transactional
     public void enableUser(Long id) {
-        User user = userDao.findByIdAndStatusNot(id, UserStatus.DELETED)
+        User user = userPersistence.findByIdAndStatusNot(id, UserStatus.DELETED)
                 .orElseThrow(() -> new UserNotFoundException(id));
         user.setStatus(UserStatus.ACTIVE);
-        userDao.save(user);
-        eventPublisher.publish(UserEventType.ENABLED, user);
+        userPersistence.save(user);
+        log.info("Utente abilitato: id={}", id);
+        eventPort.publish(UserEventType.ENABLED, user);
     }
 
+    // soft-delete: il record rimane in DB per audit, ma viene escluso da tutte le query operative
+    @Override
     @Transactional
     public void deleteUser(Long id) {
-        User user = userDao.findByIdAndStatusNot(id, UserStatus.DELETED)
+        User user = userPersistence.findByIdAndStatusNot(id, UserStatus.DELETED)
                 .orElseThrow(() -> new UserNotFoundException(id));
         user.setStatus(UserStatus.DELETED);
-        userDao.save(user);
-        eventPublisher.publish(UserEventType.DELETED, user);
+        userPersistence.save(user);
+        log.info("Utente eliminato (soft-delete): id={}", id);
+        eventPort.publish(UserEventType.DELETED, user);
     }
 
     private Set<Role> resolveRoles(CreateUserRequest request) {
         return request.getRoles().stream()
-                .map(roleName -> roleDao.findByName(roleName)
+                .map(roleName -> rolePersistence.findByName(roleName)
                         .orElseThrow(() -> new RoleNotFoundException(roleName)))
                 .collect(Collectors.toSet());
     }

@@ -16,7 +16,7 @@ import org.springframework.data.redis.serializer.RedisSerializationContext.Seria
 import java.time.Duration;
 
 @Configuration
-@ConditionalOnProperty(name = "spring.cache.type", havingValue = "redis", matchIfMissing = true)
+@ConditionalOnProperty(name = "spring.cache.type", havingValue = "redis", matchIfMissing = true) // disabilitato nei test con cache.type=none
 public class CacheConfig {
 
     @Bean
@@ -30,12 +30,12 @@ public class CacheConfig {
         return builder -> builder
                 .withCacheConfiguration("users",
                         RedisCacheConfiguration.defaultCacheConfig()
-                                .entryTtl(Duration.ofMinutes(10))
+                                .entryTtl(Duration.ofMinutes(10)) // TTL breve: i dati utente cambiano con operazioni CRUD
                                 .serializeValuesWith(SerializationPair.fromSerializer(
                                         new Jackson2JsonRedisSerializer<>(mapper, User.class))))
                 .withCacheConfiguration("roles",
                         RedisCacheConfiguration.defaultCacheConfig()
-                                .entryTtl(Duration.ofHours(24))
+                                .entryTtl(Duration.ofHours(24)) // TTL lungo: i ruoli cambiano solo per manutenzione
                                 .serializeValuesWith(SerializationPair.fromSerializer(
                                         new Jackson2JsonRedisSerializer<>(mapper, Role.class))));
     }

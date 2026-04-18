@@ -1,6 +1,10 @@
 package com.intesi.usermanagement.application.service;
 
+import com.intesi.usermanagement.application.port.out.RolePersistencePort;
+import com.intesi.usermanagement.application.port.out.UserEventPort;
+import com.intesi.usermanagement.application.port.out.UserPersistencePort;
 import com.intesi.usermanagement.domain.enums.RoleName;
+import com.intesi.usermanagement.domain.enums.UserEventType;
 import com.intesi.usermanagement.domain.enums.UserStatus;
 import com.intesi.usermanagement.domain.model.Role;
 import com.intesi.usermanagement.domain.model.User;
@@ -8,10 +12,6 @@ import com.intesi.usermanagement.dto.request.CreateUserRequest;
 import com.intesi.usermanagement.dto.response.UserResponse;
 import com.intesi.usermanagement.exception.RoleNotFoundException;
 import com.intesi.usermanagement.exception.UserAlreadyExistsException;
-import com.intesi.usermanagement.infrastructure.dao.RoleDao;
-import com.intesi.usermanagement.infrastructure.dao.UserDao;
-import com.intesi.usermanagement.infrastructure.messaging.UserEventPublisher;
-import com.intesi.usermanagement.infrastructure.messaging.UserEventType;
 import com.intesi.usermanagement.mapper.UserMapper;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -33,16 +33,16 @@ import static org.mockito.Mockito.*;
 class UserServiceCreateTest {
 
     @Mock
-    private UserDao userDao;
+    private UserPersistencePort userPersistence;
 
     @Mock
-    private RoleDao roleDao;
+    private RolePersistencePort rolePersistence;
 
     @Mock
     private UserMapper userMapper;
 
     @Mock
-    private UserEventPublisher eventPublisher;
+    private UserEventPort eventPort;
 
     @InjectMocks
     private UserService userService;
@@ -84,17 +84,17 @@ class UserServiceCreateTest {
                 .email("mario.rossi@example.com")
                 .build();
 
-        when(userDao.existsByUsername("mrossi")).thenReturn(false);
-        when(userDao.existsByEmail("mario.rossi@example.com")).thenReturn(false);
-        when(userDao.existsByCodiceFiscale("rssmra85m01h501z")).thenReturn(false);
-        when(roleDao.findByName(RoleName.DEVELOPER)).thenReturn(Optional.of(developerRole));
-        when(userDao.save(any(User.class))).thenReturn(savedUser);
+        when(userPersistence.existsByUsername("mrossi")).thenReturn(false);
+        when(userPersistence.existsByEmail("mario.rossi@example.com")).thenReturn(false);
+        when(userPersistence.existsByCodiceFiscale("rssmra85m01h501z")).thenReturn(false);
+        when(rolePersistence.findByName(RoleName.DEVELOPER)).thenReturn(Optional.of(developerRole));
+        when(userPersistence.save(any(User.class))).thenReturn(savedUser);
         when(userMapper.toResponse(savedUser)).thenReturn(expectedResponse);
 
         UserResponse result = userService.createUser(validRequest);
 
         assertThat(result).isEqualTo(expectedResponse);
-        verify(userDao).save(any(User.class));
+        verify(userPersistence).save(any(User.class));
     }
 
     @Test
@@ -102,17 +102,17 @@ class UserServiceCreateTest {
         Role developerRole = new Role(RoleName.DEVELOPER);
         User savedUser = User.builder().id(1L).build();
 
-        when(userDao.existsByUsername(any())).thenReturn(false);
-        when(userDao.existsByEmail(any())).thenReturn(false);
-        when(userDao.existsByCodiceFiscale(any())).thenReturn(false);
-        when(roleDao.findByName(any())).thenReturn(Optional.of(developerRole));
-        when(userDao.save(any(User.class))).thenReturn(savedUser);
+        when(userPersistence.existsByUsername(any())).thenReturn(false);
+        when(userPersistence.existsByEmail(any())).thenReturn(false);
+        when(userPersistence.existsByCodiceFiscale(any())).thenReturn(false);
+        when(rolePersistence.findByName(any())).thenReturn(Optional.of(developerRole));
+        when(userPersistence.save(any(User.class))).thenReturn(savedUser);
         when(userMapper.toResponse(any())).thenReturn(new UserResponse());
 
         userService.createUser(validRequest); // codiceFiscale è lowercase nel setUp
 
         ArgumentCaptor<User> captor = ArgumentCaptor.forClass(User.class);
-        verify(userDao).save(captor.capture());
+        verify(userPersistence).save(captor.capture());
         assertThat(captor.getValue().getCodiceFiscale()).isEqualTo("RSSMRA85M01H501Z");
     }
 
@@ -122,38 +122,38 @@ class UserServiceCreateTest {
 
     @Test
     void shouldThrowWhenUsernameAlreadyExists() {
-        when(userDao.existsByUsername("mrossi")).thenReturn(true);
+        when(userPersistence.existsByUsername("mrossi")).thenReturn(true);
 
         assertThatThrownBy(() -> userService.createUser(validRequest))
                 .isInstanceOf(UserAlreadyExistsException.class)
                 .hasMessageContaining("username");
 
-        verify(userDao, never()).save(any());
+        verify(userPersistence, never()).save(any());
     }
 
     @Test
     void shouldThrowWhenEmailAlreadyExists() {
-        when(userDao.existsByUsername(any())).thenReturn(false);
-        when(userDao.existsByEmail("mario.rossi@example.com")).thenReturn(true);
+        when(userPersistence.existsByUsername(any())).thenReturn(false);
+        when(userPersistence.existsByEmail("mario.rossi@example.com")).thenReturn(true);
 
         assertThatThrownBy(() -> userService.createUser(validRequest))
                 .isInstanceOf(UserAlreadyExistsException.class)
                 .hasMessageContaining("email");
 
-        verify(userDao, never()).save(any());
+        verify(userPersistence, never()).save(any());
     }
 
     @Test
     void shouldThrowWhenCodiceFiscaleAlreadyExists() {
-        when(userDao.existsByUsername(any())).thenReturn(false);
-        when(userDao.existsByEmail(any())).thenReturn(false);
-        when(userDao.existsByCodiceFiscale("rssmra85m01h501z")).thenReturn(true);
+        when(userPersistence.existsByUsername(any())).thenReturn(false);
+        when(userPersistence.existsByEmail(any())).thenReturn(false);
+        when(userPersistence.existsByCodiceFiscale("rssmra85m01h501z")).thenReturn(true);
 
         assertThatThrownBy(() -> userService.createUser(validRequest))
                 .isInstanceOf(UserAlreadyExistsException.class)
                 .hasMessageContaining("codiceFiscale");
 
-        verify(userDao, never()).save(any());
+        verify(userPersistence, never()).save(any());
     }
 
     // -------------------------------------------------------------------------
@@ -165,26 +165,26 @@ class UserServiceCreateTest {
         Role developerRole = new Role(RoleName.DEVELOPER);
         User savedUser = User.builder().id(1L).username("mrossi").build();
 
-        when(userDao.existsByUsername(any())).thenReturn(false);
-        when(userDao.existsByEmail(any())).thenReturn(false);
-        when(userDao.existsByCodiceFiscale(any())).thenReturn(false);
-        when(roleDao.findByName(any())).thenReturn(Optional.of(developerRole));
-        when(userDao.save(any(User.class))).thenReturn(savedUser);
+        when(userPersistence.existsByUsername(any())).thenReturn(false);
+        when(userPersistence.existsByEmail(any())).thenReturn(false);
+        when(userPersistence.existsByCodiceFiscale(any())).thenReturn(false);
+        when(rolePersistence.findByName(any())).thenReturn(Optional.of(developerRole));
+        when(userPersistence.save(any(User.class))).thenReturn(savedUser);
         when(userMapper.toResponse(any())).thenReturn(new UserResponse());
 
         userService.createUser(validRequest);
 
-        verify(eventPublisher).publish(UserEventType.CREATED, savedUser);
+        verify(eventPort).publish(UserEventType.CREATED, savedUser);
     }
 
     @Test
     void shouldNotPublishEventOnFailure() {
-        when(userDao.existsByUsername("mrossi")).thenReturn(true);
+        when(userPersistence.existsByUsername("mrossi")).thenReturn(true);
 
         assertThatThrownBy(() -> userService.createUser(validRequest))
                 .isInstanceOf(UserAlreadyExistsException.class);
 
-        verify(eventPublisher, never()).publish(any(), any());
+        verify(eventPort, never()).publish(any(), any());
     }
 
     // -------------------------------------------------------------------------
@@ -193,15 +193,15 @@ class UserServiceCreateTest {
 
     @Test
     void shouldThrowWhenRoleNotFoundInDatabase() {
-        when(userDao.existsByUsername(any())).thenReturn(false);
-        when(userDao.existsByEmail(any())).thenReturn(false);
-        when(userDao.existsByCodiceFiscale(any())).thenReturn(false);
-        when(roleDao.findByName(RoleName.DEVELOPER)).thenReturn(Optional.empty());
+        when(userPersistence.existsByUsername(any())).thenReturn(false);
+        when(userPersistence.existsByEmail(any())).thenReturn(false);
+        when(userPersistence.existsByCodiceFiscale(any())).thenReturn(false);
+        when(rolePersistence.findByName(RoleName.DEVELOPER)).thenReturn(Optional.empty());
 
         assertThatThrownBy(() -> userService.createUser(validRequest))
                 .isInstanceOf(RoleNotFoundException.class)
                 .hasMessageContaining("DEVELOPER");
 
-        verify(userDao, never()).save(any());
+        verify(userPersistence, never()).save(any());
     }
 }

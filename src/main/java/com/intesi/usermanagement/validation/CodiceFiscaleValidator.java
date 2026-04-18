@@ -14,6 +14,7 @@ public class CodiceFiscaleValidator implements ConstraintValidator<ValidCodiceFi
 
     @Override
     public boolean isValid(String value, ConstraintValidatorContext context) {
+        // null è valido: la presenza è demandata a @NotNull, per composizione delle constraint
         if (value == null) {
             return true;
         }

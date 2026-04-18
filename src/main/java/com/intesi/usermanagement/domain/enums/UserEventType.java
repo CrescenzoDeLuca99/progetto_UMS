@@ -1,4 +1,4 @@
-package com.intesi.usermanagement.infrastructure.messaging;
+package com.intesi.usermanagement.domain.enums;
 
 public enum UserEventType {
     CREATED,
