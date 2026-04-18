@@ -15,7 +15,7 @@ Servizio REST per la gestione anagrafica degli utenti, sviluppato con Spring Boo
 ```bash
 # 1. Clona il repository
 git clone https://github.com/CrescenzoDeLuca99/progetto_UMS.git
-cd Esercizio_Intesi
+cd <nome cartella>
 
 # 2. Avvia lo stack completo
 docker compose up --build -d
