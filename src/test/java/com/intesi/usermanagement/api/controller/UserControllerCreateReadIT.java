@@ -117,6 +117,17 @@ class UserControllerCreateReadIT extends AbstractIntegrationTest {
         assertThat((Integer) page.get("totalElements")).isEqualTo(2);
     }
 
+    @Test
+    @SuppressWarnings("unchecked")
+    void shouldReturnEmptyPageWhenNoUsers() {
+        ResponseEntity<Map> response = restTemplate.getForEntity("/users", Map.class);
+
+        assertThat(response.getStatusCode()).isEqualTo(HttpStatus.OK);
+        Map<String, Object> page = response.getBody();
+        assertThat((java.util.List<?>) page.get("content")).isEmpty();
+        assertThat((Integer) page.get("totalElements")).isEqualTo(0);
+    }
+
     // -------------------------------------------------------------------------
     // Helper
     // -------------------------------------------------------------------------

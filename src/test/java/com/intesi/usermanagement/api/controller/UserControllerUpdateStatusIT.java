@@ -203,6 +203,32 @@ class UserControllerUpdateStatusIT extends AbstractIntegrationTest {
         assertThat(response.getStatusCode()).isEqualTo(HttpStatus.NOT_FOUND);
     }
 
+    @Test
+    @SuppressWarnings("unchecked")
+    void shouldExcludeDeletedUserFromList() {
+        UserResponse created = createUser("mrossi", "mario.rossi@example.com", "RSSMRA85M01H501Z");
+
+        restTemplate.exchange("/users/{id}", HttpMethod.DELETE,
+                HttpEntity.EMPTY, Void.class, created.getId());
+
+        ResponseEntity<Map> listResponse = restTemplate.getForEntity("/users", Map.class);
+        assertThat(listResponse.getStatusCode()).isEqualTo(HttpStatus.OK);
+        assertThat((java.util.List<?>) listResponse.getBody().get("content")).isEmpty();
+    }
+
+    @Test
+    @SuppressWarnings("unchecked")
+    void shouldIncludeDisabledUserInList() {
+        UserResponse created = createUser("mrossi", "mario.rossi@example.com", "RSSMRA85M01H501Z");
+
+        restTemplate.exchange("/users/{id}/disable", HttpMethod.POST,
+                HttpEntity.EMPTY, Void.class, created.getId());
+
+        ResponseEntity<Map> listResponse = restTemplate.getForEntity("/users", Map.class);
+        assertThat(listResponse.getStatusCode()).isEqualTo(HttpStatus.OK);
+        assertThat((java.util.List<?>) listResponse.getBody().get("content")).hasSize(1);
+    }
+
     // -------------------------------------------------------------------------
     // Helper
     // -------------------------------------------------------------------------

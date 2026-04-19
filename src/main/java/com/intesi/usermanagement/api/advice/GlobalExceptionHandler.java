@@ -4,6 +4,8 @@ import com.intesi.usermanagement.exception.RoleNotFoundException;
 import com.intesi.usermanagement.exception.UserAlreadyExistsException;
 import com.intesi.usermanagement.exception.UserNotFoundException;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.dao.DataIntegrityViolationException;
+import org.springframework.security.access.AccessDeniedException;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ProblemDetail;
 import org.springframework.web.bind.MethodArgumentNotValidException;
@@ -45,5 +47,30 @@ public class GlobalExceptionHandler {
                 HttpStatus.BAD_REQUEST, "Errore di validazione");
         problem.setProperty("errors", errors);
         return problem;
+    }
+
+    @ExceptionHandler(DataIntegrityViolationException.class)
+    public ProblemDetail handleDataIntegrity(DataIntegrityViolationException ex) {
+        // TOCTOU: race condition tra il check di unicità in UserService e il salvataggio — il DB rileva il conflitto
+        log.warn("Violazione di integrità dati: {}", ex.getMessage());
+        String detail = resolveIntegrityDetail(ex.getMessage());
+        return ProblemDetail.forStatusAndDetail(HttpStatus.CONFLICT, detail);
+    }
+
+    private String resolveIntegrityDetail(String message) {
+        if (message == null) return "Violazione di un vincolo di unicità";
+        String lower = message.toLowerCase();
+        if (lower.contains("username"))      return "Username già in uso";
+        if (lower.contains("email"))         return "Email già in uso";
+        if (lower.contains("codice_fiscale")) return "Codice fiscale già in uso";
+        return "Violazione di un vincolo di unicità";
+    }
+
+    @ExceptionHandler(Exception.class)
+    public ProblemDetail handleGeneric(Exception ex) throws Exception {
+        // AccessDeniedException deve essere rilanciata: Spring Security la intercetta per produrre il 403
+        if (ex instanceof AccessDeniedException) throw ex;
+        log.error("Eccezione non gestita", ex);
+        return ProblemDetail.forStatusAndDetail(HttpStatus.INTERNAL_SERVER_ERROR, "Errore interno del server");
     }
 }

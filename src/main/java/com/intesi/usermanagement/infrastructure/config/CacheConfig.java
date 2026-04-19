@@ -16,7 +16,7 @@ import org.springframework.data.redis.serializer.RedisSerializationContext.Seria
 import java.time.Duration;
 
 @Configuration
-@ConditionalOnProperty(name = "spring.cache.type", havingValue = "redis", matchIfMissing = true) // disabilitato nei test con cache.type=none
+@ConditionalOnProperty(name = "spring.cache.type", havingValue = "redis", matchIfMissing = true)
 public class CacheConfig {
 
     @Bean
