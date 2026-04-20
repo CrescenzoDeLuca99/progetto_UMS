@@ -2,9 +2,11 @@ package com.intesi.usermanagement.api.controller;
 
 import com.intesi.usermanagement.application.port.in.UserCommandUseCase;
 import com.intesi.usermanagement.application.port.in.UserQueryUseCase;
+import com.intesi.usermanagement.domain.model.User;
 import com.intesi.usermanagement.dto.request.CreateUserRequest;
 import com.intesi.usermanagement.dto.request.UpdateUserRequest;
 import com.intesi.usermanagement.dto.response.UserResponse;
+import com.intesi.usermanagement.mapper.UserMapper;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -26,27 +28,28 @@ public class UserController {
 
     private final UserCommandUseCase commandUseCase;
     private final UserQueryUseCase queryUseCase;
+    private final UserMapper userMapper;
 
     @PostMapping
     @PreAuthorize("hasAnyRole('OWNER','OPERATOR','MAINTAINER')")
     public ResponseEntity<UserResponse> createUser(@Valid @RequestBody CreateUserRequest request) {
-        UserResponse created = commandUseCase.createUser(request);
+        User created = commandUseCase.createUser(request);
         URI location = ServletUriComponentsBuilder.fromCurrentRequest()
                 .path("/{id}")
                 .buildAndExpand(created.getId())
                 .toUri();
-        return ResponseEntity.created(location).body(created);
+        return ResponseEntity.created(location).body(userMapper.toResponse(created));
     }
 
     @GetMapping("/{id}")
     public ResponseEntity<UserResponse> getUserById(@PathVariable Long id) {
-        return ResponseEntity.ok(queryUseCase.getUserById(id));
+        return ResponseEntity.ok(userMapper.toResponse(queryUseCase.getUserById(id)));
     }
 
     @GetMapping
     public ResponseEntity<Page<UserResponse>> listUsers(
             @PageableDefault(size = 20, sort = "id") Pageable pageable) {
-        return ResponseEntity.ok(queryUseCase.listUsers(pageable));
+        return ResponseEntity.ok(queryUseCase.listUsers(pageable).map(userMapper::toResponse));
     }
 
     @PutMapping("/{id}")
@@ -54,7 +57,7 @@ public class UserController {
     public ResponseEntity<UserResponse> updateUser(
             @PathVariable Long id,
             @Valid @RequestBody UpdateUserRequest request) {
-        return ResponseEntity.ok(commandUseCase.updateUser(id, request));
+        return ResponseEntity.ok(userMapper.toResponse(commandUseCase.updateUser(id, request)));
     }
 
     @PostMapping("/{id}/disable")

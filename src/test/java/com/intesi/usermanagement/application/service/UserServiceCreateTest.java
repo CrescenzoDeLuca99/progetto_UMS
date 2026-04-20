@@ -9,10 +9,8 @@ import com.intesi.usermanagement.domain.enums.UserStatus;
 import com.intesi.usermanagement.domain.model.Role;
 import com.intesi.usermanagement.domain.model.User;
 import com.intesi.usermanagement.dto.request.CreateUserRequest;
-import com.intesi.usermanagement.dto.response.UserResponse;
 import com.intesi.usermanagement.exception.RoleNotFoundException;
 import com.intesi.usermanagement.exception.UserAlreadyExistsException;
-import com.intesi.usermanagement.mapper.UserMapper;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
@@ -39,13 +37,10 @@ class UserServiceCreateTest {
     private RolePersistencePort rolePersistence;
 
     @Mock
-    private UserMapper userMapper;
-
-    @Mock
     private UserEventPort eventPort;
 
     @InjectMocks
-    private UserService userService;
+    private UserCommandService userService;
 
     private CreateUserRequest validRequest;
 
@@ -78,22 +73,16 @@ class UserServiceCreateTest {
                 .status(UserStatus.ACTIVE)
                 .roles(Set.of(developerRole))
                 .build();
-        UserResponse expectedResponse = UserResponse.builder()
-                .id(1L)
-                .username("mrossi")
-                .email("mario.rossi@example.com")
-                .build();
 
         when(userPersistence.existsByUsername("mrossi")).thenReturn(false);
         when(userPersistence.existsByEmail("mario.rossi@example.com")).thenReturn(false);
         when(userPersistence.existsByCodiceFiscale("rssmra85m01h501z")).thenReturn(false);
         when(rolePersistence.findByName(RoleName.DEVELOPER)).thenReturn(Optional.of(developerRole));
         when(userPersistence.save(any(User.class))).thenReturn(savedUser);
-        when(userMapper.toResponse(savedUser)).thenReturn(expectedResponse);
 
-        UserResponse result = userService.createUser(validRequest);
+        User result = userService.createUser(validRequest);
 
-        assertThat(result).isEqualTo(expectedResponse);
+        assertThat(result).isEqualTo(savedUser);
         verify(userPersistence).save(any(User.class));
     }
 
@@ -107,7 +96,6 @@ class UserServiceCreateTest {
         when(userPersistence.existsByCodiceFiscale(any())).thenReturn(false);
         when(rolePersistence.findByName(any())).thenReturn(Optional.of(developerRole));
         when(userPersistence.save(any(User.class))).thenReturn(savedUser);
-        when(userMapper.toResponse(any())).thenReturn(new UserResponse());
 
         userService.createUser(validRequest); // codiceFiscale è lowercase nel setUp
 
@@ -170,7 +158,6 @@ class UserServiceCreateTest {
         when(userPersistence.existsByCodiceFiscale(any())).thenReturn(false);
         when(rolePersistence.findByName(any())).thenReturn(Optional.of(developerRole));
         when(userPersistence.save(any(User.class))).thenReturn(savedUser);
-        when(userMapper.toResponse(any())).thenReturn(new UserResponse());
 
         userService.createUser(validRequest);
 

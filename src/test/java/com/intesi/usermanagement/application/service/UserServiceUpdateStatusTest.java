@@ -9,11 +9,9 @@ import com.intesi.usermanagement.domain.enums.UserStatus;
 import com.intesi.usermanagement.domain.model.Role;
 import com.intesi.usermanagement.domain.model.User;
 import com.intesi.usermanagement.dto.request.UpdateUserRequest;
-import com.intesi.usermanagement.dto.response.UserResponse;
 import com.intesi.usermanagement.exception.RoleNotFoundException;
 import com.intesi.usermanagement.exception.UserAlreadyExistsException;
 import com.intesi.usermanagement.exception.UserNotFoundException;
-import com.intesi.usermanagement.mapper.UserMapper;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
@@ -40,13 +38,10 @@ class UserServiceUpdateStatusTest {
     private RolePersistencePort rolePersistence;
 
     @Mock
-    private UserMapper userMapper;
-
-    @Mock
     private UserEventPort eventPort;
 
     @InjectMocks
-    private UserService userService;
+    private UserCommandService userService;
 
     private User existingUser;
     private UpdateUserRequest validRequest;
@@ -79,16 +74,14 @@ class UserServiceUpdateStatusTest {
     @Test
     void shouldUpdateUserAndReturnResponse() {
         Role developerRole = new Role(RoleName.DEVELOPER);
-        UserResponse expectedResponse = UserResponse.builder().id(1L).username("mrossi").build();
 
         when(userPersistence.findByIdAndStatusNot(1L, UserStatus.DELETED)).thenReturn(Optional.of(existingUser));
         when(rolePersistence.findByName(RoleName.DEVELOPER)).thenReturn(Optional.of(developerRole));
         when(userPersistence.save(any(User.class))).thenReturn(existingUser);
-        when(userMapper.toResponse(existingUser)).thenReturn(expectedResponse);
 
-        UserResponse result = userService.updateUser(1L, validRequest);
+        User result = userService.updateUser(1L, validRequest);
 
-        assertThat(result).isEqualTo(expectedResponse);
+        assertThat(result).isEqualTo(existingUser);
         verify(userPersistence).save(existingUser);
     }
 
@@ -106,7 +99,6 @@ class UserServiceUpdateStatusTest {
         when(userPersistence.existsByUsernameAndIdNot("gverdi", 1L)).thenReturn(false);
         when(rolePersistence.findByName(RoleName.OWNER)).thenReturn(Optional.of(ownerRole));
         when(userPersistence.save(any(User.class))).thenReturn(existingUser);
-        when(userMapper.toResponse(any())).thenReturn(new UserResponse());
 
         userService.updateUser(1L, request);
 
@@ -125,7 +117,6 @@ class UserServiceUpdateStatusTest {
         when(userPersistence.findByIdAndStatusNot(1L, UserStatus.DELETED)).thenReturn(Optional.of(existingUser));
         when(rolePersistence.findByName(RoleName.DEVELOPER)).thenReturn(Optional.of(new Role(RoleName.DEVELOPER)));
         when(userPersistence.save(any())).thenReturn(existingUser);
-        when(userMapper.toResponse(any())).thenReturn(new UserResponse());
 
         userService.updateUser(1L, validRequest);
 
@@ -286,7 +277,6 @@ class UserServiceUpdateStatusTest {
         when(userPersistence.findByIdAndStatusNot(1L, UserStatus.DELETED)).thenReturn(Optional.of(existingUser));
         when(rolePersistence.findByName(RoleName.DEVELOPER)).thenReturn(Optional.of(new Role(RoleName.DEVELOPER)));
         when(userPersistence.save(any())).thenReturn(existingUser);
-        when(userMapper.toResponse(any())).thenReturn(new UserResponse());
 
         userService.updateUser(1L, validRequest);
 

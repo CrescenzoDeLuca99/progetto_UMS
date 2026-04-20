@@ -1,7 +1,6 @@
 package com.intesi.usermanagement.application.service;
 
 import com.intesi.usermanagement.application.port.in.UserCommandUseCase;
-import com.intesi.usermanagement.application.port.in.UserQueryUseCase;
 import com.intesi.usermanagement.application.port.out.RolePersistencePort;
 import com.intesi.usermanagement.application.port.out.UserEventPort;
 import com.intesi.usermanagement.application.port.out.UserPersistencePort;
@@ -11,15 +10,11 @@ import com.intesi.usermanagement.domain.model.Role;
 import com.intesi.usermanagement.domain.model.User;
 import com.intesi.usermanagement.dto.request.CreateUserRequest;
 import com.intesi.usermanagement.dto.request.UpdateUserRequest;
-import com.intesi.usermanagement.dto.response.UserResponse;
 import com.intesi.usermanagement.exception.RoleNotFoundException;
 import com.intesi.usermanagement.exception.UserAlreadyExistsException;
 import com.intesi.usermanagement.exception.UserNotFoundException;
-import com.intesi.usermanagement.mapper.UserMapper;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
-import org.springframework.data.domain.Page;
-import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -29,16 +24,15 @@ import java.util.stream.Collectors;
 @Slf4j
 @Service
 @RequiredArgsConstructor
-public class UserService implements UserCommandUseCase, UserQueryUseCase {
+public class UserCommandService implements UserCommandUseCase {
 
     private final UserPersistencePort userPersistence;
     private final RolePersistencePort rolePersistence;
-    private final UserMapper userMapper;
     private final UserEventPort eventPort;
 
     @Override
     @Transactional
-    public UserResponse createUser(CreateUserRequest request) {
+    public User createUser(CreateUserRequest request) {
         log.info("Creazione utente: username={}, email={}", request.getUsername(), request.getEmail());
         if (userPersistence.existsByUsername(request.getUsername())) {
             throw new UserAlreadyExistsException("username", request.getUsername());
@@ -64,29 +58,12 @@ public class UserService implements UserCommandUseCase, UserQueryUseCase {
         User saved = userPersistence.save(user);
         log.info("Utente creato: id={}, username={}", saved.getId(), saved.getUsername());
         eventPort.publish(UserEventType.CREATED, saved);
-        return userMapper.toResponse(saved);
-    }
-
-    @Override
-    @Transactional(readOnly = true)
-    public UserResponse getUserById(Long id) {
-        log.debug("Recupero utente id={}", id);
-        User user = userPersistence.findByIdAndStatusNot(id, UserStatus.DELETED)
-                .orElseThrow(() -> new UserNotFoundException(id));
-        return userMapper.toResponse(user);
-    }
-
-    @Override
-    @Transactional(readOnly = true)
-    public Page<UserResponse> listUsers(Pageable pageable) {
-        log.debug("Lista utenti: page={}, size={}", pageable.getPageNumber(), pageable.getPageSize());
-        return userPersistence.findAllExcludingStatus(UserStatus.DELETED, pageable)
-                .map(userMapper::toResponse);
+        return saved;
     }
 
     @Override
     @Transactional
-    public UserResponse updateUser(Long id, UpdateUserRequest request) {
+    public User updateUser(Long id, UpdateUserRequest request) {
         log.info("Aggiornamento utente id={}", id);
         User user = userPersistence.findByIdAndStatusNot(id, UserStatus.DELETED)
                 .orElseThrow(() -> new UserNotFoundException(id));
@@ -110,7 +87,7 @@ public class UserService implements UserCommandUseCase, UserQueryUseCase {
         User saved = userPersistence.save(user);
         log.info("Utente aggiornato: id={}", saved.getId());
         eventPort.publish(UserEventType.UPDATED, saved);
-        return userMapper.toResponse(saved);
+        return saved;
     }
 
     @Override
@@ -135,10 +112,10 @@ public class UserService implements UserCommandUseCase, UserQueryUseCase {
         eventPort.publish(UserEventType.ENABLED, user);
     }
 
-    // soft-delete: il record rimane in DB per audit, ma viene escluso da tutte le query operative
     @Override
     @Transactional
     public void deleteUser(Long id) {
+        // soft-delete: il record rimane in DB per audit, ma viene escluso da tutte le query operative
         User user = userPersistence.findByIdAndStatusNot(id, UserStatus.DELETED)
                 .orElseThrow(() -> new UserNotFoundException(id));
         user.setStatus(UserStatus.DELETED);
