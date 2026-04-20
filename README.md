@@ -104,13 +104,15 @@ Il progetto adotta l'architettura esagonale per isolare il core applicativo dall
 ```
 api/controller         →  inbound adapter  (HTTP)
 application/port/in    →  porte in-bound   (UserCommandUseCase, UserQueryUseCase)
-application/service    →  core applicativo (UserService)
+application/service    →  core applicativo (UserCommandService, UserQueryService)
 application/port/out   →  porte out-bound  (UserPersistencePort, RolePersistencePort, UserEventPort)
 infrastructure/dao     →  outbound adapter (DB + cache)
 infrastructure/messaging →  outbound adapter (Kafka)
 ```
 
-`UserService` dipende esclusivamente da interfacce. Il controller non conosce `UserService` ma solo i contratti delle porte. Questa struttura rende ogni layer sostituibile e testabile in isolamento.
+`UserCommandService` e `UserQueryService` dipendono esclusivamente da interfacce. Il controller non conosce le implementazioni ma solo i contratti delle porte. Questa struttura rende ogni layer sostituibile e testabile in isolamento.
+
+Il mapping da entità di dominio a DTO avviene nel layer controller tramite `UserMapper`, interfaccia implementata manualmente da `UserMapperImpl`. Il service layer lavora esclusivamente con oggetti di dominio.
 
 ### Soft-delete
 
@@ -150,7 +152,7 @@ src/main/java/com/intesi/usermanagement/
 ├── application/
 │   ├── port/in/            # Porte in-bound (use case interfaces)
 │   ├── port/out/           # Porte out-bound (persistence e messaging interfaces)
-│   └── service/            # UserService
+│   └── service/            # UserCommandService, UserQueryService
 ├── domain/
 │   ├── model/              # User, Role
 │   └── enums/              # UserStatus, RoleName, UserEventType
@@ -161,7 +163,7 @@ src/main/java/com/intesi/usermanagement/
 │   ├── config/             # Cache, OpenAPI, DataInitializer
 │   └── security/           # JWT, RBAC
 ├── dto/                    # Request e Response
-├── mapper/                 # MapStruct
+├── mapper/                 # UserMapper (interfaccia) + UserMapperImpl
 ├── validation/             # @ValidCodiceFiscale
 └── exception/              # Eccezioni di dominio
 ```
